@@ -14,5 +14,11 @@ CHIP Or {
     OUT out;
 
     PARTS:
-    // Put your code here:
+    Not(in=a,out=na);
+    Not(in=b,out=nb);
+    Nand(a=na,b=nb,out=out);
+    
 }
+
+// (a \/ b) = (~~a \/ ~~b) = Nand(~a,~b)
+    

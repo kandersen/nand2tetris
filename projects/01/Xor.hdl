@@ -8,10 +8,21 @@
  * out = not (a == b)
  */
 
+/**
+ * ~(a == b)
+ * = Nand((a -> b) , (b -> a))
+ * = Nand((~a \/ b), (~b \/ a))
+ */
 CHIP Xor {
     IN a, b;
     OUT out;
 
     PARTS:
-    // Put your code here:
+    Not(in=a,out=na);
+    Not(in=b,out=nb);
+    Or(a=na,b=b,out=l);
+    Or(a=nb,b=a,out=r);
+    Nand(a=l,b=r,out=out);
+
+    
 }
