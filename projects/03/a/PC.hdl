@@ -11,10 +11,36 @@
  * else                    out[t+1] = out[t]
  */
 
+// reset load inc fun     i 
+//     0    0   0   loop  0
+//     0    0   1    inc  1
+//     0    1   0   load  2 
+//     0    1   1   load  3
+//     1    0   0   zero  4
+//     1    0   1   zero  5
+//     1    1   0   zero  6
+//     1    1   1   zero  7
+
 CHIP PC {
     IN in[16],load,inc,reset;
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+
+    //Mux8Way16(a=loop,b=inced,c=in,d=in,e=false,f=false,g=false,h=false,sel[0]=inc,sel[1]=load,sel[2]=reset,out=input);
+
+    Mux16(a=loop,b=inced,sel=inc,out=t1);
+    Mux16(a=t1,b=in,sel=load,out=t2);
+    Mux16(a=t2,b=false,sel=reset,out=input);
+
+    //Or8Way(in[0]=load,in[1]=inc,in[2]=reset,in[3..7]=false,out=shoudLoad);
+    Or(a=load,b=inc,out=loadOrInc);
+    Or(a=loadOrInc,b=reset,out=shoudLoad);
+    
+    Register(in=input,load=shoudLoad,out=loop);
+
+    Inc16(in=loop,out=inced);
+
+    Or16(a=false,b=loop,out=out);
+    
 }
