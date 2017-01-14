@@ -66,5 +66,5 @@ CHIP ALU {
 
     Or(a=nzero12,b=nzero13,out=nIsZero);
     Not(in=nIsZero,out=zr);
-   
+
 }
