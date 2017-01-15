@@ -12,10 +12,16 @@
 // the screen should remain fully clear as long as no key is pressed.
 
 // Put your code here.
-(LOOP)
+
+    @isFilled
+    M=0
+
+(MAINLOOP)
 
     @KBD
     D=M
+    
+
     @CLEAR
     D;JEQ   // If (KBD == 0) { goto CLEAR }
 
