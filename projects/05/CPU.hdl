@@ -39,5 +39,47 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    Not(in=instruction[15],out=isAInst);
+    Or(a=instruction[15],b=false,out=isCInst);
+    Or16(a=false,b=instruction,
+      out[0]=j3,
+      out[1]=j2,
+      out[2]=j1,
+      out[3]=d3,
+      out[4]=d2,
+      out[5]=d1,
+      out[6]=c6,
+      out[7]=c5,
+      out[8]=c4,
+      out[9]=c3,
+      out[10]=c2,
+      out[11]=c1,
+      out[12]=a);
+
+    Mux16(a=instruction,b=outALU,sel=isCInst,out=intoA);
+
+    And(a=isCInst,b=d1,out=writeAc);
+    Or(a=isAInst,b=writeAc,out=writeA);
+    ARegister(in=intoA,load=writeA,out=outRegA,out[0..14]=addressM);
+    And(a=isCInst,b=d2,out=writeD);
+    DRegister(in=outALU,load=writeD,out=outRegD);
+    And(a=isCInst,b=d3,out=writeM);
+
+    Mux16(a=outRegA,b=inM,sel=a,out=outAM);
+
+    ALU(zx=c1,nx=c2,zy=c3,ny=c4,f=c5,no=c6,x=outRegD,y=outAM,zr=zr,ng=ng,out=outM,out=outALU); 
+    Or(a=ng,b=zr,out=notPos);
+    Not(in=notPos,out=ps);
+    
+    And(a=j1,b=ng,out=jmpLT);
+    And(a=j2,b=zr,out=jmpEQ);
+    And(a=j3,b=ps,out=jmpGE);
+    Or(a=jmpLT,b=jmpEQ,out=jmpTmp);
+    Or(a=jmpTmp,b=jmpGE,out=tryJump);
+    And(a=isCInst,b=tryJump,out=jmp);
+
+    Nand(a=isCInst,b=tryJump,out=inc);
+
+    PC(in=outRegA,inc=inc,load=jmp,reset=reset,out[0..14]=pc); // IN in[16],load,inc,reset; OUT out[16];
+
 }
