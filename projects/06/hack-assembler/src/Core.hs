@@ -22,6 +22,7 @@ import Control.Monad.State
 
 data Atom = Zero
           | One
+          | Two
           | D
           | M
           | A
@@ -36,6 +37,7 @@ pAtom = do
     'D' -> return D
     '0' -> return Zero
     '1' -> return One
+    '2' -> return Two
     _ -> unexpected (Tokens (c :| []))
 
 data Expr = Const Atom
@@ -45,6 +47,7 @@ data Expr = Const Atom
           | Sub Atom Atom
           | And Atom Atom
           | Or Atom Atom
+          | Impl Atom Atom
           deriving (Show)
 
 pExpr :: Parser Expr
@@ -56,6 +59,7 @@ pExpr = Neg <$> pNeg
       <|> try (Sub <$> pure a <* char '-' <*> pAtom)
       <|> try (And <$> pure a <* char '&' <*> pAtom)
       <|> try (Or <$> pure a <* char '|' <*> pAtom)
+      <|> try (Impl <$> pure a <* string "=>" <*> pAtom)
       <|> Const <$> pure a
   where
     pNeg = try (char '-') *> pAtom
@@ -164,35 +168,38 @@ codegenC :: Compute -> String
 codegenC c = "111" ++ codegenExpr (_comp c) ++ (toBit <$> [_toA c, _toD c, _toM c,  _jmpLT c, _jmpEQ c, _jmpGT c])
 
 codegenExpr :: Expr -> String
-codegenExpr (Const Zero)   = "0101010"
-codegenExpr (Const One)    = "0111111"
-codegenExpr (Neg One)      = "0111010"
-codegenExpr (Const D)      = "0001100"
-codegenExpr (Const A)      = "0110000"
-codegenExpr (Const M)      = "1110000"
-codegenExpr (Not D)        = "0001101"
-codegenExpr (Not A)        = "0110001"
-codegenExpr (Not M)        = "1110001"
-codegenExpr (Neg D)        = "0001111"
-codegenExpr (Neg A)        = "0110011"
-codegenExpr (Neg M)        = "1110011"
-codegenExpr (Add D One)    = "0011111"
-codegenExpr (Add A One)    = "0110111"
-codegenExpr (Add M One)    = "1110111"
-codegenExpr (Sub D One)    = "0001110"
-codegenExpr (Sub A One)    = "0110010"
-codegenExpr (Sub M One)    = "1110010"
-codegenExpr (Add D A)      = "0000010"
-codegenExpr (Add D M)      = "1000010"
-codegenExpr (Sub D A)      = "0010011"
-codegenExpr (Sub D M)      = "1010011"
-codegenExpr (Sub A D)      = "0000111"
-codegenExpr (Sub M D)      = "1000111"
-codegenExpr (And D A)      = "0000000"
-codegenExpr (And D M)      = "1000000"
-codegenExpr (Or D A)       = "0010101"
-codegenExpr (Or D M)       = "1010101"
-codegenExpr e              = error $ "illegal compute expression: " ++ show e
+codegenExpr (Const Zero) = "0101010"
+codegenExpr (Const One)  = "0111111"
+codegenExpr (Neg One)    = "0111010"
+codegenExpr (Neg Two)    = error $ "not implemented yet: -2"
+codegenExpr (Const D)    = "0001100"
+codegenExpr (Const A)    = "0110000"
+codegenExpr (Const M)    = "1110000"
+codegenExpr (Not D)      = "0001101"
+codegenExpr (Not A)      = "0110001"
+codegenExpr (Not M)      = "1110001"
+codegenExpr (Neg D)      = "0001111"
+codegenExpr (Neg A)      = "0110011"
+codegenExpr (Neg M)      = "1110011"
+codegenExpr (Add D One)  = "0011111"
+codegenExpr (Add A One)  = "0110111"
+codegenExpr (Add M One)  = "1110111"
+codegenExpr (Sub D One)  = "0001110"
+codegenExpr (Sub A One)  = "0110010"
+codegenExpr (Sub M One)  = "1110010"
+codegenExpr (Add D A)    = "0000010"
+codegenExpr (Add D M)    = "1000010"
+codegenExpr (Sub D A)    = "0010011"
+codegenExpr (Sub D M)    = "1010011"
+codegenExpr (Sub A D)    = "0000111"
+codegenExpr (Sub M D)    = "1000111"
+codegenExpr (And D A)    = "0000000"
+codegenExpr (And D M)    = "1000000"
+codegenExpr (Or D A)     = "0010101"
+codegenExpr (Or D M)     = "1010101"
+codegenExpr (Impl D A)   = error $ "not implemented yet: D=>A"
+codegenExpr (Impl M A)   = error $ "not implemented yet: M=>A"
+codegenExpr e            = error $ "illegal compute expression: " ++ show e
 
 
 toBit :: Bool -> Char
@@ -209,11 +216,10 @@ type SymbolTable = Map Symbol Integer
 
 data CodeGenState = CGS {
   _symbolTable :: SymbolTable,
-  _nextAddr :: Integer,
+  _nextRAM :: Integer,
   _nextROM :: Integer
   }
 makeLenses ''CodeGenState
-
 
 type CodeGenM = WriterT [String] (StateT CodeGenState Identity)
 
@@ -255,8 +261,13 @@ secondPass = mapM_ go
     go (CCommand c) = tell $ [codegenC c]
     go (ACommand (Left n)) = tell $ [codegenA n]
     go (ACommand (Right s)) = do
-      addr <- fromMaybe (error $ "secondPass -- unbound symbol: " ++ s) . Map.lookup s <$> use symbolTable
-      tell $ [codegenA addr]
+      maddr <- Map.lookup s <$> use symbolTable
+      case maddr of
+        Just addr -> tell $ [codegenA addr]
+        Nothing -> do
+          nram <- nextRAM <<%= (+1)
+          symbolTable %= Map.insert s nram
+          tell $ [codegenA nram]
 
 codegenS :: [Command] -> String
 codegenS p = concat . intersperse "\n" . runCodeGenM $ firstPass p >> secondPass p
