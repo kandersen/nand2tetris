@@ -13,9 +13,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.List (intersperse)
-import Data.Maybe (fromMaybe)
-
-
 
 import Control.Monad.Identity
 import Control.Monad.State
@@ -157,7 +154,7 @@ parseLine = wspace *> pure Nothing <* eof
 
 codegenA :: Integer -> String
 codegenA a =
-  if a <= 2^15 -1
+  if a <= 2^15 - 1
   then pad $ showIntAtBase 2 ("01" !!) a ""
   else error $ "Literal address out of bounds: " ++ show a
 
@@ -206,10 +203,6 @@ toBit :: Bool -> Char
 toBit True = '1'
 toBit False = '0'
 
-codegen :: Command -> String
-codegen (CCommand c) = codegenC c
-codegen (ACommand (Left n)) = codegenA n
-
 type Symbol = String
 
 type SymbolTable = Map Symbol Integer
@@ -242,6 +235,9 @@ initialSymbolTable = Map.fromList $ registers ++ [
 initialCodeGenState :: CodeGenState
 initialCodeGenState = CGS initialSymbolTable 16 0
 
+emit :: String -> CodeGenM ()
+emit c = tell [c]
+
 firstPass :: [Command] -> CodeGenM ()
 firstPass = mapM_ go
   where
@@ -258,16 +254,16 @@ secondPass = mapM_ go
   where
     go :: Command -> CodeGenM ()
     go (LCommand _) = return ()
-    go (CCommand c) = tell $ [codegenC c]
-    go (ACommand (Left n)) = tell $ [codegenA n]
+    go (CCommand c) = emit $ codegenC c
+    go (ACommand (Left n)) = emit $ codegenA n
     go (ACommand (Right s)) = do
       maddr <- Map.lookup s <$> use symbolTable
       case maddr of
-        Just addr -> tell $ [codegenA addr]
+        Just addr -> emit $ codegenA addr
         Nothing -> do
           nram <- nextRAM <<%= (+1)
           symbolTable %= Map.insert s nram
-          tell $ [codegenA nram]
+          emit $ codegenA nram
 
 codegenS :: [Command] -> String
 codegenS p = concat . intersperse "\n" . runCodeGenM $ firstPass p >> secondPass p
