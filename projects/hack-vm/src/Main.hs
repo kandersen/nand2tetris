@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Core
 import System.Environment
 import System.FilePath
 import System.Directory
