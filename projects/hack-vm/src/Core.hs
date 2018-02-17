@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeFamilies #-}
 module Core where
 
 import Prelude
@@ -8,6 +7,7 @@ import Control.Applicative (empty)
 import Control.Monad.State
 import Control.Monad.Identity
 import Data.Char (digitToInt)
+import Data.Functor(($>))
 import Text.Megaparsec hiding (Label)
 import Text.Megaparsec.String
 import Lens.Micro.Platform
@@ -53,7 +53,7 @@ runTranslator :: StateT (TranslatorState ()) Identity a -> a
 runTranslator t = runIdentity $ evalStateT t initialState
   where
     initialState = TS {
-      _labelSupply = [ "_INTERNAL." ++ show n | n <- [0..] ],
+      _labelSupply = [ "_INTERNAL." ++ show n | n <- [0..] :: [Int] ],
       _compilationUnit = (),
       _function = ""
       }
@@ -87,16 +87,16 @@ translateCommand (Goto l) = translateGoto <$> resolveLabel l
 translateCommand (IfGoto l) = translateIfGoto <$> resolveLabel l
 translateCommand (Function name argcount) = translateFunction name argcount
 translateCommand (Call name argcount) = translateCall name argcount
-translateCommand Return = return $ translateReturn
+translateCommand Return = return translateReturn
 
 translateCmp :: (MonadState (TranslatorState a) m) => String -> m [String]
 translateCmp cmp = do
   ifTrue <- freshLabel
   done <- freshLabel
-  return $ ["@SP","M=M-1","A=M","D=M", "A=A-1", "D=M-D","@" ++ ifTrue,"D;J" ++ cmp,
-            "@SP","A=M-1","M=0","@" ++ done,"0;JMP",
-            "(" ++ ifTrue ++ ")","@SP","A=M-1","M=-1",
-            "(" ++ done ++ ")"]
+  return  ["@SP","M=M-1","A=M","D=M", "A=A-1", "D=M-D","@" ++ ifTrue,"D;J" ++ cmp,
+           "@SP","A=M-1","M=0","@" ++ done,"0;JMP",
+           "(" ++ ifTrue ++ ")","@SP","A=M-1","M=-1",
+           "(" ++ done ++ ")"]
 
 translateBinOp :: String -> [String]
 translateBinOp op = ["@SP", "M=M-1", "A=M", "D=M", "A=A-1", "M=M" ++ op ++ "D"]
@@ -105,7 +105,7 @@ translateUnOp :: String -> [String]
 translateUnOp op = ["@SP", "A=M-1", "M=" ++ op ++ "M"]
 
 translatePush :: (MonadState (TranslatorState String) m) => Segment -> Int -> m [String]
-translatePush Constant n = return $ ["@" ++ show n, "D=A", "@SP", "M=M+1", "A=M-1", "M=D" ]
+translatePush Constant n = return ["@" ++ show n, "D=A", "@SP", "M=M+1", "A=M-1", "M=D" ]
 translatePush Local n = return $ translateIndirectPush "LCL" n
 translatePush Argument n = return $ translateIndirectPush "ARG" n
 translatePush This n = return $ translateIndirectPush "THIS" n
@@ -114,7 +114,7 @@ translatePush Pointer 0 = return $ translateDirectPush "R3"
 translatePush Pointer 1 = return $ translateDirectPush "R4"
 translatePush Pointer n = error $ "push pointer index out of range: " ++ show n
 translatePush Static n = translateDirectPush <$> staticLabel n
-translatePush Temp n | 0 <= n && n < 8 = return $ translateDirectPush $ "R" ++ (show $ n + 5)
+translatePush Temp n | 0 <= n && n < 8 = return $ translateDirectPush $ "R" ++ show (n + 5)
                      | otherwise = error $ "push temp index out of range: " ++ show n
 
 translateDirectPush :: String -> [String]
@@ -172,12 +172,13 @@ translateFunction name argcount = do
 translateCall :: MonadState (TranslatorState a) m => Symbol -> Int -> m [String]
 translateCall name argcount = do
   returnAddr <- freshLabel
-  return $ concat [ ["//call " ++ name ++ " " ++ show argcount],
+  return $ concat [
+    ["//call " ++ name ++ " " ++ show argcount],
     push returnAddr,
-    push "LCL",
-    push "ARG",
-    push "THIS",
-    push "THAT"
+    pushValueOf "LCL",
+    pushValueOf "ARG",
+    pushValueOf "THIS",
+    pushValueOf "THAT"
     ] ++
     [ "@SP","D=M","@" ++ show argcount, "D=D-A", "@5", "D=D-A","@ARG","M=D",
       "@SP","D=M","@LCL","M=D",
@@ -185,14 +186,15 @@ translateCall name argcount = do
       "(" ++ returnAddr ++ ")"
     ]
     where
-      push r = ["@" ++ r, "D=A","@SP","M=M+1","A=M-1","M=D"]
+      push r = ["@" ++ r, "D=A", "@SP", "M=M+1", "A=M-1", "M=D"]
+      pushValueOf r = ["@" ++ r, "D=M","@SP","M=M+1","A=M-1","M=D"]
 
 translateReturn :: [String]
 translateReturn = ["//return",
-  "@LCL","D=M","@R13","M=D", -- FRAME(R13) = LCL
-  "@5","D=A","@R13","A=M-D","D=M","@R14","M=D", -- RET(R14) = *(FRAME - 5)
-  "@SP","M=M-1","A=M","D=M","@ARG","A=M","M=D", -- *ARG = pop()
-  "@ARG","D=M+1","@SP","M=D", -- SP = ARG+1
+  "@LCL","D=M","@R13","M=D",                     -- FRAME(R13) = LCL
+  "@5","D=A","@R13","A=M-D","D=M","@R14","M=D",  -- RET(R14) = *(FRAME - 5)
+  "@SP","M=M-1","A=M","D=M","@ARG","A=M","M=D",  -- *ARG = pop()
+  "@ARG","D=M+1","@SP","M=D",                    -- SP = ARG+1
   "@R13","D=M","@1","A=D-A","D=M","@THAT","M=D",
   "@R13","D=M","@2","A=D-A","D=M","@THIS","M=D",
   "@R13","D=M","@3","A=D-A","D=M","@ARG","M=D",
@@ -241,7 +243,7 @@ natural :: (Num a) => Parser a
 natural = foldl (\acc n -> acc * 10 + fromIntegral (digitToInt n)) 0 <$> some digitChar
 
 wspace :: Parser ()
-wspace = L.space (spaceChar *> pure ()) (L.skipLineComment "//") empty
+wspace = L.space (spaceChar $> ()) (L.skipLineComment "//") empty
 
 pLine :: Parser Command
 pLine = wspace *> pCommand <* wspace
@@ -270,4 +272,14 @@ translateProgram :: MonadState (TranslatorState ()) m => Program -> m [String]
 translateProgram = fmap join . traverse translateCompilationUnit
 
 translate :: Program -> String
-translate = unlines . runTranslator . translateProgram
+translate = unlines . (bootstrapper' ++) . runTranslator . translateProgram
+  where
+    bootstrapper' = [
+      "@256","M=0", -- push return address
+      "@257","M=0", -- push LCL
+      "@258","M=0", -- push ARG
+      "@259","M=0", -- push THIS
+      "@260","M=0", -- push THAT
+      "@261","D=A","@SP","M=D", -- SP = 261,
+      "@Sys.init", "0;JMP" -- call Sys.init 0
+      ]
