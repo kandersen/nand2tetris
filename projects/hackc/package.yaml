@@ -1,0 +1,30 @@
+name: hackc
+version: 0.0.0
+github: kandersen/nand2tetris
+
+ghc-options: -Wall
+
+dependencies:
+  - base >= 4.7 && < 5
+  - containers
+  - megaparsec
+  - microlens-platform
+  - mtl
+  - transformers
+  - filepath
+  - directory
+  - microlens
+  - microlens-th
+  - optparse-applicative
+
+
+library:
+  source-dirs: src
+  exposed-modules:
+    Core
+
+executable:
+  main: Main.hs
+  source-dirs: src
+  dependencies:
+    - hackc

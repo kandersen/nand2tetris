@@ -1,0 +1,61 @@
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 60189e74b85b70f800d106bd2aa1d71e48bc881425545e52abd2b27c0c178fa2
+
+name:           hack-vm
+version:        0.0.0
+homepage:       https://github.com/kandersen/nand2tetris#readme
+bug-reports:    https://github.com/kandersen/nand2tetris/issues
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+source-repository head
+  type: git
+  location: https://github.com/kandersen/nand2tetris
+
+library
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , directory
+    , filepath
+    , megaparsec
+    , microlens
+    , microlens-platform
+    , microlens-th
+    , mtl
+    , transformers
+  exposed-modules:
+      Core
+  other-modules:
+      Main
+      Paths_hack_vm
+  default-language: Haskell2010
+
+executable hack-vm
+  main-is: Main.hs
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , directory
+    , filepath
+    , hack-vm
+    , megaparsec
+    , microlens
+    , microlens-platform
+    , microlens-th
+    , mtl
+    , transformers
+  other-modules:
+      Core
+      Paths_hack_vm
+  default-language: Haskell2010

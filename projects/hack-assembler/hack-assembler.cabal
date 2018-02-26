@@ -1,0 +1,52 @@
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: cdbfae045a058ac69148db229414287aaa2332bfe1133cd2311de1bdcde3d16e
+
+name:           hack-assembler
+version:        0.0.0
+homepage:       https://github.com/kandersen/nand2tetris#readme
+bug-reports:    https://github.com/kandersen/nand2tetris/issues
+build-type:     Simple
+cabal-version:  >= 1.10
+
+source-repository head
+  type: git
+  location: https://github.com/kandersen/nand2tetris
+
+library
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , megaparsec
+    , microlens-platform
+    , mtl
+    , transformers
+  exposed-modules:
+      Core
+  other-modules:
+      Main
+      Paths_hack_assembler
+  default-language: Haskell2010
+
+executable hack-assembler
+  main-is: Main.hs
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , hack-assembler
+    , megaparsec
+    , microlens-platform
+    , mtl
+    , transformers
+  other-modules:
+      Core
+      Paths_hack_assembler
+  default-language: Haskell2010
