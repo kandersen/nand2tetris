@@ -24,9 +24,9 @@ pConfiguration = Configuration
 
 execute :: Configuration -> IO ()
 execute Configuration{..} = do
-  when _printVersion $
+  when _printVersion
     printVersion
-  forM_ _targetPaths $ \path -> 
+  forM_ _targetPaths $ \path ->
     case splitExtension path of
       (_, "") -> processDirectory _dumpAST path
       (_, ".jack") -> compileClassFile _dumpAST path
@@ -39,7 +39,7 @@ main = execute =<< execParser options
       ( fullDesc <> progDesc "hackc Jack Compiler")
 
 printVersion :: IO ()
-printVersion = do
+printVersion =
   putStrLn "hackc version 0"
 
 processDirectory :: Bool -> FilePath -> IO ()
@@ -60,4 +60,3 @@ parseFile file = do
   case parse pClassDecl file input of
     Left e -> error $ parseErrorPretty e
     Right c -> return c
-  _name = "Query",
